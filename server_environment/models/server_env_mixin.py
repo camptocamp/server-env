@@ -168,11 +168,6 @@ class ServerEnvMixin(models.AbstractModel):
                     )
                     value = record[default_field]
 
-                if not value:
-                    # no value in config files nor in default field,
-                    # get odoo's default value
-                    value = record.default_get([field_name]).get(field_name)
-
                 record[field_name] = value
 
     def _inverse_server_env(self, field_name):
