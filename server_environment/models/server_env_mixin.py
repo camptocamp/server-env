@@ -211,6 +211,7 @@ class ServerEnvMixin(models.AbstractModel):
         setattr(ServerEnvMixin, inverse_method_name, inverse_method)
         field.inverse = inverse_method_name
         field.store = False
+        field.required = False
         field.copy = False
         field.sparse = None
 
@@ -239,12 +240,15 @@ class ServerEnvMixin(models.AbstractModel):
         fieldname = self._server_env_default_fieldname(base_field.name)
         if fieldname not in self._fields:
             base_field_cls = base_field.__class__
-            field_args = base_field.args
+            field_args = base_field.args.copy()
             field_args.pop('_sequence', None)
             field_args.update({
                 'sparse': 'server_env_defaults',
                 'automatic': True,
             })
+
+            if hasattr(base_field, 'selection'):
+                field_args['selection'] = base_field.selection
             field = base_field_cls(**field_args)
             self._add_field(fieldname, field)
 
@@ -253,6 +257,6 @@ class ServerEnvMixin(models.AbstractModel):
         super()._setup_base()
         for fieldname in self._server_env_fields:
             field = self._fields[fieldname]
+            self._server_env_add_default_field(field)
             self._server_env_transform_field_to_read_from_env(field)
             self._server_env_add_is_editable_field(field)
-            self._server_env_add_default_field(field)
