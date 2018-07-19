@@ -123,16 +123,16 @@ class ServerEnvMixin(models.AbstractModel):
         """
         for record in self:
             for field_name, options in self._server_env_fields.items():
-                section_name = self._server_env_section_name()
+                section_name = record._server_env_section_name()
                 if (section_name in serv_config
                         and field_name in serv_config[section_name]):
                     getter_name = options.get('getter', 'get')
-                    value = self._server_env_read_from_config(
+                    value = record._server_env_read_from_config(
                         section_name, field_name, getter_name
                     )
 
                 else:
-                    default_field = self._server_env_default_fieldname(
+                    default_field = record._server_env_default_fieldname(
                         field_name
                     )
                     value = record[default_field]
@@ -168,7 +168,8 @@ class ServerEnvMixin(models.AbstractModel):
                 is_editable_field = self._server_env_is_editable_fieldname(
                     field_name
                 )
-                section_name = self._server_env_section_name()
+
+                section_name = record._server_env_section_name()
                 is_editable = not (section_name in serv_config
                                    and field_name in serv_config[section_name])
                 record[is_editable_field] = is_editable
