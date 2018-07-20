@@ -30,7 +30,8 @@ the incoming and outgoing mail servers depending on the environment.
 You can store your configuration values in a companion module called
 ``server_environment_files``. You can copy and customize the provided
 ``server_environment_files_sample`` module for this purpose. Alternatively, you
-can provide them in an environment variable ``SERVER_ENV_CONFIG``.
+can provide them in environment variables ``SERVER_ENV_CONFIG`` and
+``SERVER_ENV_CONFIG_SECRET``.
 
 
 Configuration
@@ -64,7 +65,9 @@ You can edit the settings you need in the ``server_environment_files`` addon. Th
 Environment variable
 --------------------
 
-You can define configuration in the environment variable ``SERVER_ENV_CONFIG``.
+You can define configuration in the environment variable ``SERVER_ENV_CONFIG``
+and/or ``SERVER_ENV_CONFIG_SECRET``. The 2 variables are handled the exact same way,
+this is only a convenience for the deployment where you can isolate the secrets.
 If you used ``server_environment_files``, the options set it the environment variable overrides them.
 This is a multi-line environment variable in the same configparser format than the files.
 

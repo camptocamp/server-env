@@ -39,6 +39,8 @@ except ImportError:
                  ' no directory found')
     _dir = None
 
+ENV_VAR_NAMES = ('SERVER_ENV_CONFIG', 'SERVER_ENV_CONFIG_SECRET')
+
 # Same dict as RawConfigParser._boolean_states
 _boolean_states = {'1': True, 'yes': True, 'true': True, 'on': True,
                    '0': False, 'no': False, 'false': False, 'off': False}
@@ -111,15 +113,16 @@ def _load_config_from_rcfile(config_p):
 
 
 def _load_config_from_env(config_p):
-    env_config = os.getenv('SERVER_ENV_CONFIG')
-    if env_config:
-        try:
-            config_p.read_string(env_config)
-        except configparser.Error as err:
-            raise Exception(
-                'SERVER_ENV_CONFIG content could not be parsed: %s'
-                % (err,)
-            )
+    for varname in ENV_VAR_NAMES:
+        env_config = os.getenv(varname)
+        if env_config:
+            try:
+                config_p.read_string(env_config)
+            except configparser.Error as err:
+                raise Exception(
+                    '%s content could not be parsed: %s'
+                    % (varname, err,)
+                )
 
 
 def _load_config():
