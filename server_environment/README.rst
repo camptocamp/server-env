@@ -60,16 +60,18 @@ You can edit the settings you need in the ``server_environment_files`` addon. Th
 * each environment you need to define is stored in its own directory
   and can override or extend default values;
 * you can override or extend values in the main configuration
-  file of you instance;
+  file of your instance;
 
 Environment variable
 --------------------
 
 You can define configuration in the environment variable ``SERVER_ENV_CONFIG``
-and/or ``SERVER_ENV_CONFIG_SECRET``. The 2 variables are handled the exact same way,
-this is only a convenience for the deployment where you can isolate the secrets.
-If you used ``server_environment_files``, the options set it the environment variable overrides them.
-This is a multi-line environment variable in the same configparser format than the files.
+and/or ``SERVER_ENV_CONFIG_SECRET``. The 2 variables are handled the exact same
+way, this is only a convenience for the deployment where you can isolate the
+secrets in a different, encrypted, file. This is a multi-line environment variable
+in the same configparser format than the files.
+If you used options in ``server_environment_files``, the options set in the
+environment variable overrides them. 
 
 The options in the environment variable are not dependent of ``running_env``,
 the content of the variable must be set accordingly to the running environment.
@@ -92,6 +94,37 @@ Keychain integration
 Read the documentation of the class `models/server_env_mixin.py
 <models/server_env_mixin.py>`_.
 
+Example of setup:
+
+A public file, containing that will contain public variables::
+
+    # These variables are not odoo standard variables,
+    # they are there to represent what your file could look like
+    export WORKERS='8'
+    export MAX_CRON_THREADS='1'
+    export LOG_LEVEL=info
+    export LOG_HANDLER=":INFO"
+    export DB_MAXCONN=5
+
+    # server environment options
+    export SERVER_ENV_CONFIG="
+    [storage_backend.my-sftp]
+    sftp_server=10.10.10.10
+    sftp_login=foo
+    sftp_port=22200
+    directory_path=Odoo
+    "
+
+A second file which is encrypted and contains secrets::
+
+    # This variable is not an odoo standard variable,
+    # it is there to represent what your file could look like
+    export DB_PASSWORD='xxxxxxxxx'
+    # server environment options
+    export SERVER_ENV_CONFIG_SECRET="
+    [storage_backend.my-sftp]
+    sftp_password=xxxxxxxxx
+    "
 
 Usage
 =====

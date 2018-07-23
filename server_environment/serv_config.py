@@ -41,6 +41,8 @@ except ImportError:
 
 ENV_VAR_NAMES = ('SERVER_ENV_CONFIG', 'SERVER_ENV_CONFIG_SECRET')
 
+ENV_VAR_NAMES = ('SERVER_ENV_CONFIG', 'SERVER_ENV_CONFIG_SECRET')
+
 # Same dict as RawConfigParser._boolean_states
 _boolean_states = {'1': True, 'yes': True, 'true': True, 'on': True,
                    '0': False, 'no': False, 'false': False, 'off': False}
@@ -106,7 +108,6 @@ def _load_config_from_server_env_files(config_p):
     except Exception as e:
         raise Exception('Cannot read config files "%s":  %s' % (conf_files, e))
 
-
 def _load_config_from_rcfile(config_p):
     config_p.read(system_base_config.rcfile)
     config_p.remove_section('options')
@@ -123,7 +124,6 @@ def _load_config_from_env(config_p):
                     '%s content could not be parsed: %s'
                     % (varname, err,)
                 )
-
 
 def _load_config():
     """Load the configuration and return a ConfigParser instance."""
