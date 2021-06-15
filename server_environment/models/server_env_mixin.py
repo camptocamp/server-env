@@ -190,6 +190,7 @@ class ServerEnvMixin(models.AbstractModel):
             # at this point we should have checked that we have a key with
             # _server_env_has_key_defined so we are sure that the value is
             # either in the global or the record config
+            print(field_name, config_getter)
             getter = getattr(serv_config, config_getter)
             if section_name in serv_config and field_name in serv_config[section_name]:
                 value = getter(section_name, field_name)
