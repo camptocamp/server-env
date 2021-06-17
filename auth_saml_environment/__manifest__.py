@@ -13,5 +13,8 @@
         "auth_saml",
         "server_environment",
     ],
+    "data": [
+        "views/saml_provider_view.xml",
+    ],
     "installable": True,
 }
