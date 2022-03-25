@@ -2,7 +2,8 @@
 # @author Simone Orsi <simahawk@gmail.com>
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
-from odoo import api, fields, models
+from odoo import api, fields, models, _
+from odoo.exceptions import ValidationError
 
 from odoo.addons.http_routing.models.ir_http import slugify
 
@@ -28,9 +29,6 @@ class ServerEnvTechNameMixin(models.AbstractModel):
 
     _name = "server.env.techname.mixin"
     _description = "Server environment technical name"
-    _sql_constraints = [
-        ("tech_name_uniq", "unique(tech_name)", "`tech_name` must be unique!",)
-    ]
     # TODO: could leverage the new option for computable / writable fields
     # and get rid of some onchange / read / write code.
     tech_name = fields.Char(
@@ -39,6 +37,15 @@ class ServerEnvTechNameMixin(models.AbstractModel):
 
     _server_env_section_name_field = "tech_name"
 
+    @api.constrains('tech_name')
+    def _check_tech_name(self):
+
+        for record in self:
+            if hasattr(record, 'company_id') and self.search([('id', '!=', record.id), ('tech_name', '=' , record.tech_name), ('company_id', '=', record.company_id.id)]):
+                raise ValidationError(_("Tech name %s is duplicated. Tech name must be unique per company.") % record.tech_name)
+            if not hasattr(record, 'company_id') and self.search([('id', '!=', record.id), ('tech_name', '=' , record.tech_name)]):
+                raise ValidationError(_("Tech name %s is duplicated. Tech name must be unique.") % record.tech_name)
+                
     @api.onchange("name")
     def _onchange_name_for_tech(self):
         # Keep this specific name for the method to avoid possible overrides
