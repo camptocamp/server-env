@@ -312,7 +312,7 @@ class ServerConfiguration(models.TransientModel):
         should be secret.
         :return: list of secret keywords
         """
-        secret_keys = ["passw", "key", "secret", "token"]
+        secret_keys = ["_pass", "passw", "key", "secret", "token"]
         return any(secret_key in key for secret_key in secret_keys)
 
     @api.model
