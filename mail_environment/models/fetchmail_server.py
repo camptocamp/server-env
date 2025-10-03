@@ -3,8 +3,8 @@
 
 import operator
 
+import odoo.orm.domains as orm_domains
 from odoo import api, fields, models
-from odoo.osv.expression import FALSE_DOMAIN
 
 
 class FetchmailServer(models.Model):
@@ -44,14 +44,14 @@ class FetchmailServer(models.Model):
     def _search_is_ssl(self, oper, value):
         """Keep the is_ssl field searchable to allow domain in search view."""
         if not isinstance(value, bool):
-            return FALSE_DOMAIN
+            return orm_domains._FALSE_LEAF
         operators = {
             "=": operator.eq,
             "!=": operator.ne,
         }
         if oper not in operators:
-            return FALSE_DOMAIN
-        servers = self.search([]).filtered(lambda s: operators[oper](value, s.is_ssl))
+            return orm_domains._FALSE_LEAF
+        servers = self.search([]).filtered(lambda s: operators[oper](value, s.is_ssl))  # pylint: disable=W8163
         return [("id", "in", servers.ids)]
 
     @api.model
@@ -64,7 +64,7 @@ class FetchmailServer(models.Model):
         }
         if oper not in operators:
             return [("id", "in", [])]
-        servers = self.search([]).filtered(
+        servers = self.search([]).filtered(  # pylint: disable=W8163
             lambda s: operators[oper](value, s.server_type)
         )
         return [("id", "in", servers.ids)]
