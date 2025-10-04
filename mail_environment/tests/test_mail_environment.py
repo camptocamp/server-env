@@ -34,44 +34,85 @@ active = 1
 
 
 class TestMailEnvironment(ServerEnvironmentCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.FetchmailServer = cls.env["fetchmail.server"]
+        cls.fetchmail1 = cls.FetchmailServer.create({"name": "fetchmail1"})
+        cls.fetchmail2 = cls.FetchmailServer.create({"name": "fetchmail2"})
+
     def test_fetchmail_search_is_ssl(self):
-        fetchmail1 = self.env["fetchmail.server"].create({"name": "fetchmail1"})
-        fetchmail2 = self.env["fetchmail.server"].create({"name": "fetchmail2"})
         with self.load_config(public=fetchmail_config):
             # Test basic properties
-            self.assertTrue(fetchmail1.is_ssl)
-            self.assertEqual(fetchmail1.port, 993)
-            self.assertFalse(fetchmail2.is_ssl)
-            self.assertEqual(fetchmail2.port, 143)
+            self.assertTrue(self.fetchmail1.is_ssl)
+            self.assertEqual(self.fetchmail1.port, 993)
+            self.assertFalse(self.fetchmail2.is_ssl)
+            self.assertEqual(self.fetchmail2.port, 143)
 
             # Test is_ssl search method
             self.assertIn(
-                fetchmail1, self.env["fetchmail.server"].search([("is_ssl", "=", True)])
+                self.fetchmail1,
+                self.env["fetchmail.server"].search([("is_ssl", "=", True)]),
             )
             self.assertIn(
-                fetchmail1,
+                self.fetchmail1,
                 self.env["fetchmail.server"].search([("is_ssl", "!=", False)]),
             )
             self.assertNotIn(
-                fetchmail1,
+                self.fetchmail1,
                 self.env["fetchmail.server"].search([("is_ssl", "=", False)]),
             )
             self.assertNotIn(
-                fetchmail1,
+                self.fetchmail1,
                 self.env["fetchmail.server"].search([("is_ssl", "!=", True)]),
             )
             self.assertNotIn(
-                fetchmail2, self.env["fetchmail.server"].search([("is_ssl", "=", True)])
+                self.fetchmail2,
+                self.env["fetchmail.server"].search([("is_ssl", "=", True)]),
             )
             self.assertNotIn(
-                fetchmail2,
+                self.fetchmail2,
                 self.env["fetchmail.server"].search([("is_ssl", "!=", False)]),
             )
             self.assertIn(
-                fetchmail2,
+                self.fetchmail2,
                 self.env["fetchmail.server"].search([("is_ssl", "=", False)]),
             )
             self.assertIn(
-                fetchmail2,
+                self.fetchmail2,
                 self.env["fetchmail.server"].search([("is_ssl", "!=", True)]),
+            )
+
+    def test_fetchmail_search_server_type(self):
+        with self.load_config(public=fetchmail_config):
+            # Test server_type search method
+            self.assertIn(
+                self.fetchmail1,
+                self.env["fetchmail.server"].search([("server_type", "=", "imap")]),
+            )
+            self.assertIn(
+                self.fetchmail1,
+                self.env["fetchmail.server"].search([("server_type", "!=", "pop3")]),
+            )
+            self.assertNotIn(
+                self.fetchmail1,
+                self.env["fetchmail.server"].search([("server_type", "=", "pop3")]),
+            )
+            self.assertNotIn(
+                self.fetchmail1,
+                self.env["fetchmail.server"].search([("server_type", "!=", "imap")]),
+            )
+            self.assertIn(
+                self.fetchmail1,
+                self.env["fetchmail.server"].search(
+                    [("server_type", "=ilike", "IMAP")]
+                ),
+            )
+            self.assertIn(
+                self.fetchmail1,
+                self.env["fetchmail.server"].search([("server_type", "ilike", "IM")]),
+            )
+            self.assertNotIn(
+                self.fetchmail1,
+                self.env["fetchmail.server"].search([("server_type", "ilike", "POP")]),
             )
