@@ -44,3 +44,9 @@ class IrMailServer(models.Model):
             [("smtp_host", oper, value)]
         )
         return fields.Domain([("id", "in", servers.ids)])
+
+    def _compute_smtp_authentication_info(self):
+        res = super()._compute_smtp_authentication_info()
+        for server in self:
+            if server.smtp_authentication == False:
+                server.smtp_authentication_info = False
