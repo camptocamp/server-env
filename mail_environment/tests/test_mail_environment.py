@@ -2,6 +2,8 @@
 # License LGPL-3.0 or later (https://www.gnu.org/licenses/lgpl.html)
 
 
+from odoo.tools import sql
+
 from odoo.addons.server_environment.tests.common import ServerEnvironmentCase
 
 fetchmail_config = """
@@ -75,3 +77,158 @@ class TestMailEnvironment(ServerEnvironmentCase):
                 fetchmail2,
                 self.env["fetchmail.server"].search([("is_ssl", "!=", True)]),
             )
+
+
+_outgoing_config = """
+[outgoing_mail.test_outgoing]
+smtp_host = smtp.example.com
+smtp_port = 587
+smtp_encryption = starttls
+smtp_authentication = login
+smtp_user = testuser
+smtp_pass = testpass
+"""
+
+_incoming_config = """
+[incoming_mail.test_incoming]
+server = imap.example.com
+port = 993
+server_type = imap
+is_ssl = 1
+user = imap_user
+password = imap_pass
+attach = 1
+original = 0
+"""
+
+
+class TestRestoreEnvManagedColumns(ServerEnvironmentCase):
+    """Test column restoration performed by the uninstall hook."""
+
+    def _drop_columns(self, model_name, field_names):
+        """Drop columns created by restore_env_managed_columns (test cleanup)."""
+        model = self.env[model_name]
+        cr = self.env.cr
+        for field_name in field_names:
+            if sql.column_exists(cr, model._table, field_name):
+                cr.execute(  # noqa: S608
+                    f'ALTER TABLE {model._table} DROP COLUMN "{field_name}"'
+                )
+
+    def test_restore_ir_mail_server_columns(self):
+        """Outgoing mail columns are recreated and populated with config values."""
+        field_names = [
+            "smtp_host",
+            "smtp_port",
+            "smtp_encryption",
+            "smtp_authentication",
+            "smtp_user",
+            "smtp_pass",
+        ]
+        server = self.env["ir.mail_server"].create({"name": "test_outgoing"})
+        try:
+            with self.load_config(public=_outgoing_config):
+                self.env["server.env.mixin"].restore_env_managed_columns(
+                    "ir.mail_server", field_names
+                )
+                table = self.env["ir.mail_server"]._table
+                for field_name in field_names:
+                    self.assertTrue(
+                        sql.column_exists(self.env.cr, table, field_name),
+                        f"Column {field_name} was not created",
+                    )
+                self.env.cr.execute(
+                    "SELECT smtp_host, smtp_port, smtp_encryption,"
+                    " smtp_authentication, smtp_user, smtp_pass"
+                    " FROM ir_mail_server WHERE id = %s",
+                    [server.id],
+                )
+                row = self.env.cr.dictfetchone()
+                self.assertEqual(row["smtp_host"], "smtp.example.com")
+                self.assertEqual(row["smtp_port"], 587)
+                self.assertEqual(row["smtp_encryption"], "starttls")
+                self.assertEqual(row["smtp_authentication"], "login")
+                self.assertEqual(row["smtp_user"], "testuser")
+                self.assertEqual(row["smtp_pass"], "testpass")
+        finally:
+            self._drop_columns("ir.mail_server", field_names)
+
+    def test_restore_ir_mail_server_columns_with_default(self):
+        """Columns are populated with default values when no config is loaded."""
+        field_names = ["smtp_host", "smtp_port"]
+        # Write via the inverse to set the x_smtp_host_env_default sparse field.
+        server = self.env["ir.mail_server"].create(
+            {"name": "test_default_outgoing", "smtp_host": "default.example.com"}
+        )
+        try:
+            # No config loaded — values come from x_smtp_host_env_default.
+            self.env["server.env.mixin"].restore_env_managed_columns(
+                "ir.mail_server", field_names
+            )
+            table = self.env["ir.mail_server"]._table
+            self.assertTrue(sql.column_exists(self.env.cr, table, "smtp_host"))
+            self.env.cr.execute(
+                "SELECT smtp_host FROM ir_mail_server WHERE id = %s",
+                [server.id],
+            )
+            self.assertEqual(self.env.cr.fetchone()[0], "default.example.com")
+        finally:
+            self._drop_columns("ir.mail_server", field_names)
+
+    def test_restore_fetchmail_server_columns(self):
+        """Incoming mail columns are recreated and populated with config values."""
+        field_names = [
+            "server",
+            "port",
+            "server_type",
+            "is_ssl",
+            "user",
+            "password",
+            "attach",
+            "original",
+        ]
+        fetchmail = self.env["fetchmail.server"].create({"name": "test_incoming"})
+        try:
+            with self.load_config(public=_incoming_config):
+                self.env["server.env.mixin"].restore_env_managed_columns(
+                    "fetchmail.server", field_names
+                )
+                table = self.env["fetchmail.server"]._table
+                for field_name in field_names:
+                    self.assertTrue(
+                        sql.column_exists(self.env.cr, table, field_name),
+                        f"Column {field_name} was not created",
+                    )
+                self.env.cr.execute(
+                    'SELECT server, port, server_type, is_ssl, "user",'
+                    " password, attach, original"
+                    " FROM fetchmail_server WHERE id = %s",
+                    [fetchmail.id],
+                )
+                row = self.env.cr.dictfetchone()
+                self.assertEqual(row["server"], "imap.example.com")
+                self.assertEqual(row["port"], 993)
+                self.assertEqual(row["server_type"], "imap")
+                self.assertTrue(row["is_ssl"])
+                self.assertEqual(row["user"], "imap_user")
+                self.assertEqual(row["password"], "imap_pass")
+                self.assertTrue(row["attach"])
+                self.assertFalse(row["original"])
+        finally:
+            self._drop_columns("fetchmail.server", field_names)
+
+    def test_restore_env_managed_columns_idempotent(self):
+        """Calling restore_env_managed_columns twice is safe and idempotent."""
+        field_names = ["smtp_host", "smtp_port"]
+        self.env["ir.mail_server"].create({"name": "test_idempotent"})
+        try:
+            with self.load_config(public=_outgoing_config):
+                mixin = self.env["server.env.mixin"]
+                mixin.restore_env_managed_columns("ir.mail_server", field_names)
+                # Second call must not raise or corrupt data.
+                mixin.restore_env_managed_columns("ir.mail_server", field_names)
+            table = self.env["ir.mail_server"]._table
+            for field_name in field_names:
+                self.assertTrue(sql.column_exists(self.env.cr, table, field_name))
+        finally:
+            self._drop_columns("ir.mail_server", field_names)
