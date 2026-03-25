@@ -7,7 +7,7 @@ from functools import partialmethod
 from lxml import etree
 
 from odoo import api, fields, models
-from odoo.tools import mute_logger
+from odoo.tools import SQL, mute_logger, sql
 
 from odoo.addons.base_sparse_field.models.fields import Serialized
 
@@ -428,3 +428,70 @@ class ServerEnvMixin(models.AbstractModel):
             self._server_env_transform_field_to_read_from_env(field)
             self._server_env_add_is_editable_field(field)
         return
+
+    @api.model
+    def restore_env_managed_columns(self, model_name, field_names):
+        """Restore database columns for fields formerly managed via server.env.mixin.
+
+        When an addon binds ``server.env.mixin`` to an existing model, the ORM
+        drops the original stored columns.  Call this helper from an
+        ``uninstall_hook`` so those columns are recreated and repopulated
+        with their current effective values before the addon is removed.
+
+        The hook must run *while* the module's ORM extensions are still active
+        (guaranteed by Odoo's uninstall sequence: hooks execute before
+        ``Module.module_uninstall()``), so the env-computed fields are still
+        readable and their values can be written back to freshly created columns.
+
+        The operation is idempotent: calling it multiple times will not fail.
+
+        :param str model_name: dotted model name, e.g. ``"ir.mail_server"``
+        :param field_names: iterable of field names whose columns to restore
+        """
+        model = self.env[model_name]
+        cr = self.env.cr
+        for field_name in field_names:
+            field = model._fields.get(field_name)
+            if field is None:
+                _logger.warning(
+                    "restore_env_managed_columns: field %r not found on %s, skipping",
+                    field_name,
+                    model_name,
+                )
+                continue
+            column_type = field.column_type
+            if column_type is None:
+                _logger.warning(
+                    "restore_env_managed_columns: "
+                    "field %r on %s has no SQL column type, skipping",
+                    field_name,
+                    model_name,
+                )
+                continue
+            table = model._table
+            if not sql.column_exists(cr, table, field_name):
+                sql.create_column(cr, table, field_name, column_type[1], field.string)
+                _logger.info(
+                    "restore_env_managed_columns: created column %s.%s (%s)",
+                    table,
+                    field_name,
+                    column_type[1],
+                )
+            # Repopulate every existing record with the current computed value.
+            # The hook runs while the ORM extensions are still active, so the
+            # env-computed field is still readable via the normal accessor.
+            for record in model.search([]):
+                value = record[field_name]
+                # The ORM returns False for NULL on non-boolean fields; map
+                # that back to None so psycopg2 writes a proper SQL NULL.
+                if value is False and field.type != "boolean":
+                    value = None
+                cr.execute(
+                    SQL(
+                        "UPDATE %s SET %s = %s WHERE id = %s",
+                        SQL.identifier(table),
+                        SQL.identifier(field_name),
+                        value,
+                        record.id,
+                    )
+                )
